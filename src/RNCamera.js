@@ -255,6 +255,7 @@ type PropsType = typeof View.props & {
   faceDetectionClassifications?: number,
   onFacesDetected?: ({ faces: Array<TrackedFaceFeature> }) => void,
   onTextRecognized?: ({ textBlocks: Array<TrackedTextFeature> }) => void,
+  onModelProcessed?: () => void,
   captureAudio?: boolean,
   useCamera2Api?: boolean,
   playSoundOnCapture?: boolean,
@@ -377,6 +378,7 @@ export default class Camera extends React.Component<PropsType, StateType> {
     onFacesDetected: PropTypes.func,
     onTextRecognized: PropTypes.func,
     trackingEnabled: PropTypes.bool,
+    onModelProcessed: PropTypes.func,
     faceDetectionMode: PropTypes.number,
     faceDetectionLandmarks: PropTypes.number,
     faceDetectionClassifications: PropTypes.number,
@@ -778,6 +780,10 @@ export default class Camera extends React.Component<PropsType, StateType> {
       newProps.textRecognizerEnabled = true;
     }
 
+    if (props.onModelProcessed && props.modelParams) {
+      newProps.modelParams = props.modelParams;
+    }
+
     if (Platform.OS === 'ios') {
       delete newProps.googleVisionBarcodeMode;
       delete newProps.ratio;
@@ -806,6 +812,7 @@ const RNCamera = requireNativeComponent('RNCamera', Camera, {
     googleVisionBarcodeDetectorEnabled: true,
     faceDetectorEnabled: true,
     textRecognizerEnabled: true,
+    modelFile: null,
     importantForAccessibility: true,
     onBarCodeRead: true,
     onGoogleVisionBarcodesDetected: true,

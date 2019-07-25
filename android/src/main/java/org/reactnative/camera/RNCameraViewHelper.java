@@ -7,6 +7,8 @@ import android.graphics.Paint;
 import android.media.CamcorderProfile;
 import android.os.Build;
 import androidx.exifinterface.media.ExifInterface;
+
+import java.nio.ByteBuffer;
 import android.view.ViewGroup;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
@@ -17,6 +19,7 @@ import com.facebook.react.uimanager.UIManagerModule;
 import com.google.android.cameraview.CameraView;
 import com.google.zxing.Result;
 import org.reactnative.camera.events.*;
+import org.reactnative.camera.utils.ImageDimensions;
 import org.reactnative.barcodedetector.RNBarcodeDetector;
 import org.reactnative.facedetector.RNFaceDetector;
 
@@ -228,6 +231,27 @@ public class RNCameraViewHelper {
 
   public static void emitTextRecognizedEvent(ViewGroup view, WritableArray data) {
     TextRecognizedEvent event = TextRecognizedEvent.obtain(view.getId(), data);
+    ReactContext reactContext = (ReactContext) view.getContext();
+    reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
+  }
+
+  public static void emitModelProcessedEvent(
+      ViewGroup view,
+      ByteBuffer data,
+      ImageDimensions dimensions) {
+    float density = view.getResources().getDisplayMetrics().density;
+
+    double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
+    double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
+
+    ModelProcessedEvent event = ModelProcessedEvent.obtain(
+        view.getId(),
+        data,
+        dimensions,
+        scaleX,
+        scaleY
+    );
+
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }

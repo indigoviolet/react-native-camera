@@ -182,6 +182,7 @@ export interface RNCameraProps {
   trackingEnabled?: boolean;
 
   onTextRecognized?(response: { textBlocks: TrackedTextFeature[] }): void;
+  onModelProcessed?(response: { textBlocks: TrackedTextFeature[] }): void;
   // -- ANDROID ONLY PROPS
   /** Android only */
   ratio?: string;
