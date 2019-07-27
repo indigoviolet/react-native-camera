@@ -231,6 +231,14 @@ type EventCallbackArgumentsType = {
   nativeEvent: Object,
 };
 
+type ModelParamsType = {
+  modelFile: string,
+  inputDimX: number,
+  inputDimY: number,
+  outputDim: number,
+  freqms?: number,
+};
+
 type PropsType = typeof View.props & {
   zoom?: number,
   ratio?: string,
@@ -256,6 +264,7 @@ type PropsType = typeof View.props & {
   onFacesDetected?: ({ faces: Array<TrackedFaceFeature> }) => void,
   onTextRecognized?: ({ textBlocks: Array<TrackedTextFeature> }) => void,
   onModelProcessed?: () => void,
+  modelParams?: ModelParamsType,
   captureAudio?: boolean,
   useCamera2Api?: boolean,
   playSoundOnCapture?: boolean,

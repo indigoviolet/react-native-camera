@@ -6,15 +6,16 @@ import java.nio.ByteBuffer;
 import java.io.ByteArrayOutputStream;
 import android.view.TextureView;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.Arrays;
 
-public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, ByteBuffer> {
+public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Map<Integer, Object>> {
 
   private ModelProcessorAsyncTaskDelegate mDelegate;
   private Interpreter mModelProcessor;
   private ByteBuffer mInputBuf;
-  private ByteBuffer mOutputBuf;
+  private Map<Integer, Object> mOutputBuf;
   private int mModelMaxFreqms;
   private int mWidth;
   private int mHeight;
@@ -24,7 +25,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, By
       ModelProcessorAsyncTaskDelegate delegate,
       Interpreter modelProcessor,
       ByteBuffer inputBuf,
-      ByteBuffer outputBuf,
+      Map<Integer, Object> outputBuf,
       int modelMaxFreqms,
       int width,
       int height,
@@ -39,17 +40,17 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, By
     mHeight = height;
     mRotation = rotation;
   }
-    
+
   @Override
-  protected ByteBuffer doInBackground(Void... ignored) {
+  protected Map<Integer, Object> doInBackground(Void... ignored) {
     if (isCancelled() || mDelegate == null || mModelProcessor == null) {
       return null;
     }
     long startTime = SystemClock.uptimeMillis();
     try {
       mInputBuf.rewind();
-      mOutputBuf.rewind();
-      mModelProcessor.run(mInputBuf, mOutputBuf);
+      // mOutputBuf.rewind();
+      mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
     } catch (Exception e) {}
     try {
       if (mModelMaxFreqms > 0) {
@@ -64,7 +65,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, By
   }
 
   @Override
-  protected void onPostExecute(ByteBuffer data) {
+  protected void onPostExecute(Map<Integer, Object> data) {
     super.onPostExecute(data);
 
     if (data != null) {

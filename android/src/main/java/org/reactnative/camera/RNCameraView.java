@@ -10,6 +10,7 @@ import android.media.MediaActionSound;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import android.view.View;
 import android.os.AsyncTask;
@@ -75,7 +76,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private int mModelImageDimX;
   private int mModelImageDimY;
   private int mModelOutputDim;
-  private ByteBuffer mModelOutput;
+  private Map<Integer, Object> mModelOutput;
   private boolean mShouldDetectFaces = false;
   private boolean mShouldGoogleDetectBarcodes = false;
   private boolean mShouldScanBarCodes = false;
@@ -475,14 +476,26 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
   private void setupModelProcessor() {
     try {
-      mModelProcessor = new Interpreter(loadModelFile());
+      Interpreter.Options options = new Interpreter.Options();
+      mModelProcessor = new Interpreter(loadModelFile(), options);
       mModelInput = ByteBuffer.allocateDirect(mModelImageDimX * mModelImageDimY * 3);
       mModelViewBuf = new int[mModelImageDimX * mModelImageDimY];
-      mModelOutput = ByteBuffer.allocateDirect(mModelOutputDim);
+      // mModelOutput = ByteBuffer.allocateDirect(mModelOutputDim);
+      mModelOutput = makeOutputMap(float.class);
     } catch(Exception e) {}
   }
 
-  public void setGoogleVisionBarcodeType(int barcodeType) {
+  private Map<Integer, Object> makeOutputMap(Class<?> componentType) {
+    Map<Integer, Object> outputMap = new HashMap<>();
+    for (int i = 0; i < mModelProcessor.getOutputTensorCount(); i++) {
+      int[] shape = mModelProcessor.getOutputTensor(i).shape();
+      Object output = Array.newInstance(componentType, shape);
+      outputMap.put(i, output);
+    }
+    return outputMap;
+  }
+
+    public void setGoogleVisionBarcodeType(int barcodeType) {
     mGoogleVisionBarCodeType = barcodeType;
     if (mGoogleBarcodeDetector != null) {
       mGoogleBarcodeDetector.setBarcodeType(barcodeType);
