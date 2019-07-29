@@ -49,7 +49,6 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
     long startTime = SystemClock.uptimeMillis();
     try {
       mInputBuf.rewind();
-      // mOutputBuf.rewind();
       mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
     } catch (Exception e) {}
     try {

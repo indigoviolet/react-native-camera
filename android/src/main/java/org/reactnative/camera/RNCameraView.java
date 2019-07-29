@@ -559,12 +559,12 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   @Override
-  public void onModelProcessed(ByteBuffer data, int sourceWidth, int sourceHeight, int sourceRotation) {
+  public void onModelProcessed(Map<Integer, Object> data, int sourceWidth, int sourceHeight, int sourceRotation) {
     if (!mShouldProcessModel) {
       return;
     }
 
-    ByteBuffer dataDetected = data == null ? ByteBuffer.allocate(0) : data;
+    Map<Integer, Object> dataDetected = data == null ? new HashMap<Integer, Object>() : data;
     ImageDimensions dimensions = new ImageDimensions(sourceWidth, sourceHeight, sourceRotation, getFacing());
 
     RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions);
@@ -575,9 +575,6 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     textRecognizerTaskLock = false;
   }
 
-  /**
-  *
-  * End Text Recognition */
 
   @Override
   public void onModelProcessorTaskCompleted() {

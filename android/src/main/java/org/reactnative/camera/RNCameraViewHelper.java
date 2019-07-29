@@ -8,7 +8,6 @@ import android.media.CamcorderProfile;
 import android.os.Build;
 import androidx.exifinterface.media.ExifInterface;
 
-import java.nio.ByteBuffer;
 import android.view.ViewGroup;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
@@ -25,6 +24,7 @@ import org.reactnative.facedetector.RNFaceDetector;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Map;
 
 public class RNCameraViewHelper {
 
@@ -237,7 +237,7 @@ public class RNCameraViewHelper {
 
   public static void emitModelProcessedEvent(
       ViewGroup view,
-      ByteBuffer data,
+      Map<Integer, Object> data,
       ImageDimensions dimensions) {
     float density = view.getResources().getDisplayMetrics().density;
 

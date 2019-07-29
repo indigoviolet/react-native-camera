@@ -1,9 +1,6 @@
 package org.reactnative.camera.events;
 
-import android.support.v4.util.Pools;
-import android.util.SparseArray;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
+import androidx.core.util.Pools;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
@@ -12,14 +9,14 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
-import com.google.android.cameraview.CameraView;
-import com.google.android.gms.vision.text.Line;
-import com.google.android.gms.vision.text.Text;
-import com.google.android.gms.vision.text.TextBlock;
+
 import org.reactnative.camera.CameraViewManager;
 import org.reactnative.camera.utils.ImageDimensions;
 import org.reactnative.facedetector.FaceDetectorUtils;
 
+import java.util.Map;
+
+import com.indigoviolet.react.ArrayUtil;
 
 public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
@@ -29,14 +26,14 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   private double mScaleX;
   private double mScaleY;
-  private ByteBuffer mData;
+  private Map<Integer, Object> mData;
   private ImageDimensions mImageDimensions;
 
   private ModelProcessedEvent() {}
 
   public static ModelProcessedEvent obtain(
       int viewTag,
-      ByteBuffer data,
+      Map<Integer, Object> data,
       ImageDimensions dimensions,
       double scaleX,
       double scaleY) {
@@ -50,7 +47,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   private void init(
       int viewTag,
-      ByteBuffer data,
+      Map<Integer, Object> data,
       ImageDimensions dimensions,
       double scaleX,
       double scaleY) {
@@ -71,18 +68,26 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     rctEventEmitter.receiveEvent(getViewTag(), getEventName(), serializeEventData());
   }
 
-  private WritableMap serializeEventData() {
-    mData.rewind();
-    byte[] byteArray = new byte[mData.capacity()];
-    mData.get(byteArray);
-    WritableArray dataList = Arguments.createArray();
-    for (byte b : byteArray) {
-        dataList.pushInt((int)b);
-    }
+  // private WritableMap serializeEventData() {
+  //   mData.rewind();
+  //   byte[] byteArray = new byte[mData.capacity()];
+  //   mData.get(byteArray);
+  //   WritableArray dataList = Arguments.createArray();
+  //   for (byte b : byteArray) {
+  //       dataList.pushInt((int)b);
+  //   }
 
+  //   WritableMap event = Arguments.createMap();
+  //   event.putString("type", "textBlock");
+  //   event.putArray("data", dataList);
+  //   event.putInt("target", getViewTag());
+  //   return event;
+  // }
+
+  private WritableMap serializeEventData() {
     WritableMap event = Arguments.createMap();
     event.putString("type", "textBlock");
-    event.putArray("data", dataList);
+    event.putArray("data", ArrayUtil.toWritableArray(mData.values().toArray()));
     event.putInt("target", getViewTag());
     return event;
   }
