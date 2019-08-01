@@ -86,7 +86,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   private WritableMap serializeEventData() {
     WritableMap event = Arguments.createMap();
-    event.putString("type", "textBlock");
+    event.putString("type", "pose");
     event.putArray("data", ArrayUtil.toWritableArray(mData.values().toArray()));
     event.putInt("target", getViewTag());
     return event;

@@ -28,11 +28,14 @@ import org.reactnative.camera.utils.RNFileUtils;
 import org.reactnative.facedetector.RNFaceDetector;
 import android.content.res.AssetFileDescriptor;
 import java.io.FileInputStream;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.MappedByteBuffer;
 import android.graphics.Bitmap;
 
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.Tensor;
+import org.tensorflow.lite.DataType;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,14 +71,15 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private RNFaceDetector mFaceDetector;
   private RNBarcodeDetector mGoogleBarcodeDetector;
 
-  private String mModelFile;
   private Interpreter mModelProcessor;
+  private String mModelFile;
+  private double mModelMean;
+  private double mModelStd;
   private int mModelMaxFreqms;
   private ByteBuffer mModelInput;
+  private DataType mModelInputDataType;
   private int[] mModelViewBuf;
-  private int mModelImageDimX;
-  private int mModelImageDimY;
-  private int mModelOutputDim;
+  private int mModelInputSize;
   private Map<Integer, Object> mModelOutput;
   private boolean mShouldDetectFaces = false;
   private boolean mShouldGoogleDetectBarcodes = false;
@@ -207,19 +211,25 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   private void getImageData(TextureView view) {
-    Bitmap bitmap = view.getBitmap(mModelImageDimX, mModelImageDimY);
+    Bitmap bitmap = view.getBitmap(mModelInputSize, mModelInputSize);
     if (bitmap == null) {
       return;
     }
     mModelInput.rewind();
     bitmap.getPixels(mModelViewBuf, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
     int pixel = 0;
-    for (int i = 0; i < mModelImageDimX; ++i) {
-      for (int j = 0; j < mModelImageDimY; ++j) {
-        final int val = mModelViewBuf[pixel++];
-        mModelInput.put((byte) ((val >> 16) & 0xFF));
-        mModelInput.put((byte) ((val >> 8) & 0xFF));
-        mModelInput.put((byte) (val & 0xFF));
+    for (int i = 0; i < mModelInputSize; ++i) {
+      for (int j = 0; j < mModelInputSize; ++j) {
+        int pixelValue = mModelViewBuf[pixel++];
+        if (mModelInputDataType == DataType.FLOAT32) {
+          mModelInput.putFloat((((pixelValue >> 16) & 0xFF) - (float) mModelMean) / (float) mModelStd);
+          mModelInput.putFloat((((pixelValue >> 8) & 0xFF) - (float) mModelMean) / (float) mModelStd);
+          mModelInput.putFloat(((pixelValue & 0xFF) - (float) mModelMean) / (float) mModelStd);
+        } else {
+          mModelInput.put((byte) ((pixelValue >> 16) & 0xFF));
+          mModelInput.put((byte) ((pixelValue >> 8) & 0xFF));
+          mModelInput.put((byte) (pixelValue & 0xFF));
+        }
       }
     }
   }
@@ -478,9 +488,16 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     try {
       Interpreter.Options options = new Interpreter.Options();
       mModelProcessor = new Interpreter(loadModelFile(), options);
-      mModelInput = ByteBuffer.allocateDirect(mModelImageDimX * mModelImageDimY * 3);
-      mModelViewBuf = new int[mModelImageDimX * mModelImageDimY];
-      // mModelOutput = ByteBuffer.allocateDirect(mModelOutputDim);
+
+      Tensor tensor = mModelProcessor.getInputTensor(0);
+      mModelInputSize = tensor.shape()[1];
+      int inputChannels = tensor.shape()[3];
+      mModelInputDataType = tensor.dataType();
+      int bytePerChannel = mModelInputDataType == DataType.UINT8 ? 1 : 4;
+
+      mModelInput = ByteBuffer.allocateDirect(mModelInputSize * mModelInputSize * inputChannels * bytePerChannel);
+      mModelInput.order(ByteOrder.nativeOrder());
+      mModelViewBuf = new int[mModelInputSize * mModelInputSize];
       mModelOutput = makeOutputMap(float.class);
     } catch(Exception e) {}
   }
@@ -536,12 +553,11 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);
   }
 
-  public void setModelFile(String modelFile, int inputDimX, int inputDimY, int outputDim, int freqms) {
+  public void setModelFile(String modelFile, double mean, double std, int freqms) {
     this.mModelFile = modelFile;
-    this.mModelImageDimX = inputDimX;
-    this.mModelImageDimY = inputDimY;
-    this.mModelOutputDim = outputDim;
     this.mModelMaxFreqms = freqms;
+    this.mModelMean = mean;
+    this.mModelStd = std;
     boolean shouldProcessModel = (modelFile != null);
     if (shouldProcessModel && mModelProcessor == null) {
       setupModelProcessor();

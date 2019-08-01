@@ -126,6 +126,12 @@ type TrackedTextFeature = {
   components: Array<TrackedTextFeature>,
 };
 
+type ModelProcessedEvent = {
+  type: string,
+  data: Array<any>,
+  target: number,
+};
+
 type TrackedBarcodeFeature = {
   bounds: {
     size: {
@@ -233,9 +239,8 @@ type EventCallbackArgumentsType = {
 
 type ModelParamsType = {
   modelFile: string,
-  inputDimX: number,
-  inputDimY: number,
-  outputDim: number,
+  mean?: number,
+  std?: number,
   freqms?: number,
 };
 
@@ -263,7 +268,7 @@ type PropsType = typeof View.props & {
   faceDetectionClassifications?: number,
   onFacesDetected?: ({ faces: Array<TrackedFaceFeature> }) => void,
   onTextRecognized?: ({ textBlocks: Array<TrackedTextFeature> }) => void,
-  onModelProcessed?: () => void,
+  onModelProcessed?: ModelProcessedEvent => void,
   modelParams?: ModelParamsType,
   captureAudio?: boolean,
   useCamera2Api?: boolean,

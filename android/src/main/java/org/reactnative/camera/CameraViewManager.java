@@ -172,7 +172,7 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
   public void setTracking(RNCameraView view, boolean trackingEnabled) {
     view.setTracking(trackingEnabled);
   }
-  
+
   @ReactProp(name = "googleVisionBarcodeDetectorEnabled")
   public void setGoogleVisionBarcodeDetecting(RNCameraView view, boolean googleBarcodeDetectorEnabled) {
     view.setShouldGoogleDetectBarcodes(googleBarcodeDetectorEnabled);
@@ -196,10 +196,9 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
   @ReactProp(name = "modelParams")
   public void setModelParams(RNCameraView view, ReadableMap model) {
     String modelFile = model.getString("file");
-    int inputDimX = model.getInt("inputDimX");
-    int inputDimY = model.getInt("inputDimY");
-    int outputDim = model.getInt("outputDim");
+    double mean = model.hasKey("mean") ? model.getDouble("mean") : 127.5 ;
+    double std = model.hasKey("std") ? model.getDouble("std") : 127.5;
     int freqms = model.hasKey("freqms") ? model.getInt("freqms") : 0;
-    view.setModelFile(modelFile, inputDimX, inputDimY, outputDim, freqms);
+    view.setModelFile(modelFile, mean, std, freqms);
   }
 }

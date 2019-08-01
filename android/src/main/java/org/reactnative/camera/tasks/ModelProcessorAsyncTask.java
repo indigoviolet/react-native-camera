@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.Arrays;
 
+import android.util.Log;
+
 public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Map<Integer, Object>> {
 
   private ModelProcessorAsyncTaskDelegate mDelegate;
@@ -50,7 +52,12 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
     try {
       mInputBuf.rewind();
       mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
-    } catch (Exception e) {}
+      Log.i("ReactNative", "Model Processed");
+    } catch (Exception e) {
+      Log.e("ReactNative", "Exception occurred in mModelProcessor", e);
+    }
+
+    // Run the task once every mModelMaxFreqms
     try {
       if (mModelMaxFreqms > 0) {
         long endTime = SystemClock.uptimeMillis();
