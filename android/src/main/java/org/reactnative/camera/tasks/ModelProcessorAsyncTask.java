@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import android.view.TextureView;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.Arrays;
 
@@ -22,6 +23,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
   private int mWidth;
   private int mHeight;
   private int mRotation;
+  private Map<String, Long> mTiming;
 
   public ModelProcessorAsyncTask(
       ModelProcessorAsyncTaskDelegate delegate,
@@ -41,6 +43,8 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
     mWidth = width;
     mHeight = height;
     mRotation = rotation;
+    mTiming = new HashMap<>();
+    Log.i("ReactNative", String.format("mWidth=%d, mHeight=%d, mRotation=%d", mWidth, mHeight, mRotation));
   }
 
   @Override
@@ -52,12 +56,15 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
     try {
       mInputBuf.rewind();
       mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
-      Log.i("ReactNative", "Model Processed");
+      mTiming.put("inference_ns", mModelProcessor.getLastNativeInferenceDurationNanoseconds());
+      Log.i("ReactNative", String.format("Model Processed in %d ms (%d ns)",
+                                         SystemClock.uptimeMillis() - startTime,
+                                         mModelProcessor.getLastNativeInferenceDurationNanoseconds()));
     } catch (Exception e) {
       Log.e("ReactNative", "Exception occurred in mModelProcessor", e);
     }
 
-    // Run the task once every mModelMaxFreqms
+    // Run the task max every mModelMaxFreqms by blocking until then
     try {
       if (mModelMaxFreqms > 0) {
         long endTime = SystemClock.uptimeMillis();
@@ -75,7 +82,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
     super.onPostExecute(data);
 
     if (data != null) {
-      mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation);
+      mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation, mTiming);
     }
     mDelegate.onModelProcessorTaskCompleted();
   }

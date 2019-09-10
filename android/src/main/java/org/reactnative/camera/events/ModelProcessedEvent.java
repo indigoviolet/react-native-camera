@@ -3,20 +3,18 @@ package org.reactnative.camera.events;
 import androidx.core.util.Pools;
 
 import com.facebook.react.bridge.Arguments;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import org.reactnative.camera.CameraViewManager;
 import org.reactnative.camera.utils.ImageDimensions;
-import org.reactnative.facedetector.FaceDetectorUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import com.indigoviolet.react.ArrayUtil;
+import com.indigoviolet.react.MapUtil;
 
 public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
@@ -27,6 +25,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
   private double mScaleX;
   private double mScaleY;
   private Map<Integer, Object> mData;
+  private Map<String, Long> mTiming;
   private ImageDimensions mImageDimensions;
 
   private ModelProcessedEvent() {}
@@ -36,12 +35,13 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
       Map<Integer, Object> data,
       ImageDimensions dimensions,
       double scaleX,
-      double scaleY) {
+      double scaleY,
+      Map<String, Long> timing) {
     ModelProcessedEvent event = EVENTS_POOL.acquire();
     if (event == null) {
       event = new ModelProcessedEvent();
     }
-    event.init(viewTag, data, dimensions, scaleX, scaleY);
+    event.init(viewTag, data, dimensions, scaleX, scaleY, timing);
     return event;
   }
 
@@ -50,12 +50,14 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
       Map<Integer, Object> data,
       ImageDimensions dimensions,
       double scaleX,
-      double scaleY) {
+      double scaleY,
+      Map<String, Long> timing) {
     super.init(viewTag);
     mData = data;
     mImageDimensions = dimensions;
     mScaleX = scaleX;
     mScaleY = scaleY;
+    mTiming = timing;
   }
 
   @Override
@@ -68,57 +70,30 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     rctEventEmitter.receiveEvent(getViewTag(), getEventName(), serializeEventData());
   }
 
-  // private WritableMap serializeEventData() {
-  //   mData.rewind();
-  //   byte[] byteArray = new byte[mData.capacity()];
-  //   mData.get(byteArray);
-  //   WritableArray dataList = Arguments.createArray();
-  //   for (byte b : byteArray) {
-  //       dataList.pushInt((int)b);
-  //   }
-
-  //   WritableMap event = Arguments.createMap();
-  //   event.putString("type", "textBlock");
-  //   event.putArray("data", dataList);
-  //   event.putInt("target", getViewTag());
-  //   return event;
-  // }
 
   private WritableMap serializeEventData() {
     WritableMap event = Arguments.createMap();
     event.putString("type", "pose");
     event.putArray("data", ArrayUtil.toWritableArray(mData.values().toArray()));
+
+    WritableMap scaleMap = Arguments.createMap();
+    scaleMap.putDouble("scaleX", mScaleX);
+    scaleMap.putDouble("scaleY", mScaleY);
+    event.putMap("scale", scaleMap);
+
+    WritableMap dimMap = Arguments.createMap();
+    dimMap.putInt("height", mImageDimensions.getHeight());
+    dimMap.putInt("width", mImageDimensions.getWidth());
+    dimMap.putInt("rotation", mImageDimensions.getRotation());
+    dimMap.putInt("facing", mImageDimensions.getFacing());
+    event.putMap("dimensions", dimMap);
+
+    Map<String, Object> timingObj = new HashMap<>();
+    timingObj.putAll(mTiming);
+    event.putMap("timing", MapUtil.toWritableMap(timingObj));
+
     event.putInt("target", getViewTag());
     return event;
-  }
-
-  private WritableMap rotateTextX(WritableMap text) {
-    ReadableMap faceBounds = text.getMap("bounds");
-
-    ReadableMap oldOrigin = faceBounds.getMap("origin");
-    WritableMap mirroredOrigin = FaceDetectorUtils.positionMirroredHorizontally(
-        oldOrigin, mImageDimensions.getWidth(), mScaleX);
-
-    double translateX = -faceBounds.getMap("size").getDouble("width");
-    WritableMap translatedMirroredOrigin = FaceDetectorUtils.positionTranslatedHorizontally(mirroredOrigin, translateX);
-
-    WritableMap newBounds = Arguments.createMap();
-    newBounds.merge(faceBounds);
-    newBounds.putMap("origin", translatedMirroredOrigin);
-
-    text.putMap("bounds", newBounds);
-
-    ReadableArray oldComponents = text.getArray("components");
-    WritableArray newComponents = Arguments.createArray();
-    for (int i = 0; i < oldComponents.size(); ++i) {
-      WritableMap component = Arguments.createMap();
-      component.merge(oldComponents.getMap(i));
-      rotateTextX(component);
-      newComponents.pushMap(component);
-    }
-    text.putArray("components", newComponents);
-
-    return text;
   }
 
 }

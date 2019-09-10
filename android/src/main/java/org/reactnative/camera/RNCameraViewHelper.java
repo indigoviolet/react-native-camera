@@ -26,6 +26,8 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Map;
 
+import android.util.Log;
+
 public class RNCameraViewHelper {
 
   public static final String[][] exifTags = new String[][]{
@@ -238,18 +240,21 @@ public class RNCameraViewHelper {
   public static void emitModelProcessedEvent(
       ViewGroup view,
       Map<Integer, Object> data,
-      ImageDimensions dimensions) {
+      ImageDimensions dimensions,
+      Map<String, Long> timing) {
     float density = view.getResources().getDisplayMetrics().density;
 
     double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
     double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
 
+    Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f", view.getWidth(), view.getHeight(), density));
     ModelProcessedEvent event = ModelProcessedEvent.obtain(
         view.getId(),
         data,
         dimensions,
         scaleX,
-        scaleY
+        scaleY,
+        timing
     );
 
     ReactContext reactContext = (ReactContext) view.getContext();

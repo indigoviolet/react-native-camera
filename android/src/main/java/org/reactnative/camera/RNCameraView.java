@@ -10,6 +10,7 @@ import android.media.MediaActionSound;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 
+import android.os.SystemClock;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import android.view.View;
@@ -36,12 +37,15 @@ import android.graphics.Bitmap;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.Tensor;
 import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.gpu.GpuDelegate;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import android.util.Log;
 
 public class RNCameraView extends CameraView implements LifecycleEventListener, BarCodeScannerAsyncTaskDelegate, FaceDetectorAsyncTaskDelegate,
                                                         BarcodeDetectorAsyncTaskDelegate, TextRecognizerAsyncTaskDelegate, PictureSavedDelegate, ModelProcessorAsyncTaskDelegate {
@@ -72,6 +76,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private RNBarcodeDetector mGoogleBarcodeDetector;
 
   private Interpreter mModelProcessor;
+  private GpuDelegate mModelGpuDelegate;
   private String mModelFile;
   private double mModelMean;
   private double mModelStd;
@@ -94,6 +99,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private boolean mTrackingEnabled = true;
   private int mPaddingX;
   private int mPaddingY;
+  private long mOnFramePreviewTime = 0;
 
   public RNCameraView(ThemedReactContext themedReactContext) {
     super(themedReactContext, true);
@@ -150,12 +156,23 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
       @Override
       public void onFramePreview(CameraView cameraView, byte[] data, int width, int height, int rotation) {
+
         int correctRotation = RNCameraViewHelper.getCorrectCameraRotation(rotation, getFacing(), getCameraOrientation());
         boolean willCallBarCodeTask = mShouldScanBarCodes && !barCodeScannerTaskLock && cameraView instanceof BarCodeScannerAsyncTaskDelegate;
         boolean willCallFaceTask = mShouldDetectFaces && !faceDetectorTaskLock && cameraView instanceof FaceDetectorAsyncTaskDelegate;
         boolean willCallGoogleBarcodeTask = mShouldGoogleDetectBarcodes && !googleBarcodeDetectorTaskLock && cameraView instanceof BarcodeDetectorAsyncTaskDelegate;
         boolean willCallTextTask = mShouldRecognizeText && !textRecognizerTaskLock && cameraView instanceof TextRecognizerAsyncTaskDelegate;
         boolean willCallModelTask = mShouldProcessModel && !modelProcessorTaskLock && cameraView instanceof ModelProcessorAsyncTaskDelegate;
+
+        // Log.i("ReactNative", String.format("onFramePreview, modelProcessorTaskLock=%b, time elapsed=%d", modelProcessorTaskLock, SystemClock.uptimeMillis() - mOnFramePreviewTime));
+        mOnFramePreviewTime = SystemClock.uptimeMillis();
+
+        // Log.i("ReactNative", String.format("willCallBarCodeTask %b", willCallBarCodeTask));
+        // Log.i("ReactNative", String.format("willCallFaceTask %b", willCallFaceTask));
+        // Log.i("ReactNative", String.format("willCallGoogleBarcodeTask %b", willCallGoogleBarcodeTask));
+        // Log.i("ReactNative", String.format("willCallTextTask %b", willCallTextTask));
+        // Log.i("ReactNative", String.format("willCallModelTask", willCallModelTask));
+
         if (!willCallBarCodeTask && !willCallFaceTask && !willCallGoogleBarcodeTask && !willCallTextTask && !willCallModelTask) {
           return;
         }
@@ -201,8 +218,11 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
         }
 
         if (willCallModelTask) {
+          long timer = SystemClock.uptimeMillis();
           modelProcessorTaskLock = true;
           getImageData((TextureView) cameraView.getView());
+          // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
+          Log.i("ReactNative", String.format("width=%d, height=%d", width, height));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
           new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, width, height, correctRotation).execute();
         }
@@ -486,7 +506,11 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
   private void setupModelProcessor() {
     try {
-      Interpreter.Options options = new Interpreter.Options();
+      mModelGpuDelegate = new GpuDelegate();
+      Interpreter.Options options = (new Interpreter.Options())
+        .setAllowFp16PrecisionForFp32(true)
+        .setUseNNAPI(false)
+        .addDelegate(mModelGpuDelegate);
       mModelProcessor = new Interpreter(loadModelFile(), options);
 
       Tensor tensor = mModelProcessor.getInputTensor(0);
@@ -575,7 +599,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   @Override
-  public void onModelProcessed(Map<Integer, Object> data, int sourceWidth, int sourceHeight, int sourceRotation) {
+  public void onModelProcessed(Map<Integer, Object> data, int sourceWidth, int sourceHeight, int sourceRotation, Map<String, Long> timing) {
     if (!mShouldProcessModel) {
       return;
     }
@@ -583,7 +607,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     Map<Integer, Object> dataDetected = data == null ? new HashMap<Integer, Object>() : data;
     ImageDimensions dimensions = new ImageDimensions(sourceWidth, sourceHeight, sourceRotation, getFacing());
 
-    RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions);
+    RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions, timing);
   }
 
   @Override
@@ -631,6 +655,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     }
     if (mModelProcessor != null) {
       mModelProcessor.close();
+      mModelGpuDelegate.close();
     }
     mMultiFormatReader = null;
     stop();
