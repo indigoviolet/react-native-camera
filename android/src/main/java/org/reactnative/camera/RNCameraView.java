@@ -39,6 +39,7 @@ import org.tensorflow.lite.Tensor;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.gpu.GpuDelegate;
 
+import java.util.Calendar;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -218,13 +219,13 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
         }
 
         if (willCallModelTask) {
-          long timer = SystemClock.uptimeMillis();
+          long timer = SystemClock.elapsedRealtime();
           modelProcessorTaskLock = true;
           getImageData((TextureView) cameraView.getView());
           // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
-          Log.i("ReactNative", String.format("width=%d, height=%d", width, height));
+          // Log.i("ReactNative", String.format("width=%d, height=%d", width, height));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
-          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, width, height, correctRotation).execute();
+          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, width, height, correctRotation, Calendar.getInstance().getTimeInMillis()).execute();
         }
       }
     });
@@ -506,11 +507,11 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
   private void setupModelProcessor() {
     try {
-      mModelGpuDelegate = new GpuDelegate();
+      // mModelGpuDelegate = new GpuDelegate();
       Interpreter.Options options = (new Interpreter.Options())
         .setAllowFp16PrecisionForFp32(true)
-        .setUseNNAPI(false)
-        .addDelegate(mModelGpuDelegate);
+        .setUseNNAPI(false);
+        // .addDelegate(mModelGpuDelegate);
       mModelProcessor = new Interpreter(loadModelFile(), options);
 
       Tensor tensor = mModelProcessor.getInputTensor(0);
@@ -655,7 +656,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     }
     if (mModelProcessor != null) {
       mModelProcessor.close();
-      mModelGpuDelegate.close();
+      // mModelGpuDelegate.close();
     }
     mMultiFormatReader = null;
     stop();

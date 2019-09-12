@@ -247,7 +247,7 @@ public class RNCameraViewHelper {
     double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
     double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
 
-    Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f", view.getWidth(), view.getHeight(), density));
+    // Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f", view.getWidth(), view.getHeight(), density));
     ModelProcessedEvent event = ModelProcessedEvent.obtain(
         view.getId(),
         data,

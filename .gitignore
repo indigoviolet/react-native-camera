@@ -52,3 +52,4 @@ examples/mlkit/ios/mlkit/GoogleService-Info.plist
 
 .project
 .settings
+.classpath

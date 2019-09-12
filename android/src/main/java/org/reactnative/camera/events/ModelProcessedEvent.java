@@ -12,6 +12,7 @@ import org.reactnative.camera.utils.ImageDimensions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Calendar;
 
 import com.indigoviolet.react.ArrayUtil;
 import com.indigoviolet.react.MapUtil;
@@ -72,6 +73,8 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
 
   private WritableMap serializeEventData() {
+    mTiming.put("serializationBeginTime", Calendar.getInstance().getTimeInMillis());
+
     WritableMap event = Arguments.createMap();
     event.putString("type", "pose");
     event.putArray("data", ArrayUtil.toWritableArray(mData.values().toArray()));
@@ -89,6 +92,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     event.putMap("dimensions", dimMap);
 
     Map<String, Object> timingObj = new HashMap<>();
+    mTiming.put("serializationEndTime", Calendar.getInstance().getTimeInMillis());
     timingObj.putAll(mTiming);
     event.putMap("timing", MapUtil.toWritableMap(timingObj));
 
