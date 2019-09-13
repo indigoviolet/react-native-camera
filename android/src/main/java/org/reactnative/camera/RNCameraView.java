@@ -600,12 +600,12 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   @Override
-  public void onModelProcessed(Map<Integer, Object> data, int sourceWidth, int sourceHeight, int sourceRotation, Map<String, Long> timing) {
+  public void onModelProcessed(List<Map<String, Object>> data, int sourceWidth, int sourceHeight, int sourceRotation, Map<String, Long> timing) {
     if (!mShouldProcessModel) {
       return;
     }
 
-    Map<Integer, Object> dataDetected = data == null ? new HashMap<Integer, Object>() : data;
+    List<Map<String, Object>> dataDetected = data == null ? new ArrayList<Map<String, Object>>() : data;
     ImageDimensions dimensions = new ImageDimensions(sourceWidth, sourceHeight, sourceRotation, getFacing());
 
     RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions, timing);

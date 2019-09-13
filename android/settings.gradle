@@ -1,2 +1,3 @@
-include ':react-native-bridgeutils'
+include ':react-native-bridgeutils', ':react-native-posenet'
 project(':react-native-bridgeutils').projectDir=new File('/home/venky/dev/react-native-bridgeutils/android')
+project(':react-native-posenet').projectDir=new File('/home/venky/dev/react-native-posenet/android')

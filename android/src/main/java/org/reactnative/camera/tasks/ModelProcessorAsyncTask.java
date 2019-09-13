@@ -4,14 +4,16 @@ import org.tensorflow.lite.Interpreter;
 import android.os.SystemClock;
 import java.nio.ByteBuffer;
 
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.Calendar;
 
 import android.util.Log;
+import com.indigoviolet.posenet.PosenetDecoder;
 
-public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Map<Integer, Object>> {
+public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, List<Map<String, Object>>> {
 
   private ModelProcessorAsyncTaskDelegate mDelegate;
   private Interpreter mModelProcessor;
@@ -49,7 +51,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
   }
 
   @Override
-  protected Map<Integer, Object> doInBackground(Void... ignored) {
+  protected List<Map<String, Object>> doInBackground(Void... ignored) {
     if (isCancelled() || mDelegate == null || mModelProcessor == null) {
       return null;
     }
@@ -79,11 +81,13 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Ma
         }
       }
     } catch (Exception e) {}
-    return mOutputBuf;
+    PosenetDecoder pd = new PosenetDecoder(16);
+    return pd.decode(mOutputBuf, 1, 0.5f, 20);
+    // return mOutputBuf;
   }
 
   @Override
-  protected void onPostExecute(Map<Integer, Object> data) {
+  protected void onPostExecute(List<Map<String, Object>> data) {
     super.onPostExecute(data);
 
     if (data != null) {

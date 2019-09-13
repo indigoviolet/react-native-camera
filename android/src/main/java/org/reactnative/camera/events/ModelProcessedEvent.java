@@ -12,6 +12,7 @@ import org.reactnative.camera.utils.ImageDimensions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.Calendar;
 
 import com.indigoviolet.react.ArrayUtil;
@@ -25,7 +26,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   private double mScaleX;
   private double mScaleY;
-  private Map<Integer, Object> mData;
+  private List<Map<String, Object>> mData;
   private Map<String, Long> mTiming;
   private ImageDimensions mImageDimensions;
 
@@ -33,7 +34,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   public static ModelProcessedEvent obtain(
       int viewTag,
-      Map<Integer, Object> data,
+      List<Map<String, Object>> data,
       ImageDimensions dimensions,
       double scaleX,
       double scaleY,
@@ -48,7 +49,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
   private void init(
       int viewTag,
-      Map<Integer, Object> data,
+      List<Map<String, Object>> data,
       ImageDimensions dimensions,
       double scaleX,
       double scaleY,
@@ -77,7 +78,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
     WritableMap event = Arguments.createMap();
     event.putString("type", "pose");
-    event.putArray("data", ArrayUtil.toWritableArray(mData.values().toArray()));
+    event.putArray("data", ArrayUtil.toWritableArray(mData.toArray()));
 
     WritableMap scaleMap = Arguments.createMap();
     scaleMap.putDouble("scaleX", mScaleX);
