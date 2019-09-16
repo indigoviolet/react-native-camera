@@ -82,6 +82,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private double mModelMean;
   private double mModelStd;
   private int mModelMaxFreqms;
+  private int mModelOutputStride;
   private ByteBuffer mModelInput;
   private DataType mModelInputDataType;
   private int[] mModelViewBuf;
@@ -225,7 +226,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
           // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
           // Log.i("ReactNative", String.format("width=%d, height=%d", width, height));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
-          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, width, height, correctRotation, Calendar.getInstance().getTimeInMillis()).execute();
+          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, Calendar.getInstance().getTimeInMillis()).execute();
         }
       }
     });
@@ -507,11 +508,12 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
   private void setupModelProcessor() {
     try {
-      // mModelGpuDelegate = new GpuDelegate();
-      Interpreter.Options options = (new Interpreter.Options())
-        .setAllowFp16PrecisionForFp32(true)
-        .setUseNNAPI(false);
-        // .addDelegate(mModelGpuDelegate);
+      mModelGpuDelegate = new GpuDelegate();
+
+        // .setAllowFp16PrecisionForFp32(true)
+        // .setUseNNAPI(false)
+
+      Interpreter.Options options = (new Interpreter.Options()).addDelegate(mModelGpuDelegate);
       mModelProcessor = new Interpreter(loadModelFile(), options);
 
       Tensor tensor = mModelProcessor.getInputTensor(0);
@@ -519,8 +521,10 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
       int inputChannels = tensor.shape()[3];
       mModelInputDataType = tensor.dataType();
       int bytePerChannel = mModelInputDataType == DataType.UINT8 ? 1 : 4;
+      int inputTensorSize = mModelInputSize * mModelInputSize * inputChannels * bytePerChannel;
+      Log.i("ReactNative", String.format("mModelInputSize=%d; inputChannels=%d, bytePerChannel=%d, inputTensorSize=%d", mModelInputSize, inputChannels, bytePerChannel, inputTensorSize));
 
-      mModelInput = ByteBuffer.allocateDirect(mModelInputSize * mModelInputSize * inputChannels * bytePerChannel);
+      mModelInput = ByteBuffer.allocateDirect(inputTensorSize);
       mModelInput.order(ByteOrder.nativeOrder());
       mModelViewBuf = new int[mModelInputSize * mModelInputSize];
       mModelOutput = makeOutputMap(float.class);
@@ -529,8 +533,10 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
   private Map<Integer, Object> makeOutputMap(Class<?> componentType) {
     Map<Integer, Object> outputMap = new HashMap<>();
-    for (int i = 0; i < mModelProcessor.getOutputTensorCount(); i++) {
+    int outputTensorCount = mModelProcessor.getOutputTensorCount();
+    for (int i = 0; i < outputTensorCount; i++) {
       int[] shape = mModelProcessor.getOutputTensor(i).shape();
+      Log.i("ReactNative", String.format("outputTensor %d of %d has shape %s", i, outputTensorCount, Arrays.toString(shape)));
       Object output = Array.newInstance(componentType, shape);
       outputMap.put(i, output);
     }
@@ -578,11 +584,12 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);
   }
 
-  public void setModelFile(String modelFile, double mean, double std, int freqms) {
+  public void setModelFile(String modelFile, double mean, double std, int freqms, int outputStride) {
     this.mModelFile = modelFile;
     this.mModelMaxFreqms = freqms;
     this.mModelMean = mean;
     this.mModelStd = std;
+    this.mModelOutputStride = outputStride;
     boolean shouldProcessModel = (modelFile != null);
     if (shouldProcessModel && mModelProcessor == null) {
       setupModelProcessor();
@@ -656,7 +663,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     }
     if (mModelProcessor != null) {
       mModelProcessor.close();
-      // mModelGpuDelegate.close();
+      mModelGpuDelegate.close();
     }
     mMultiFormatReader = null;
     stop();

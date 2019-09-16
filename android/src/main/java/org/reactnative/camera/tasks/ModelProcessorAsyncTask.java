@@ -20,6 +20,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
   private ByteBuffer mInputBuf;
   private Map<Integer, Object> mOutputBuf;
   private int mModelMaxFreqms;
+  private int mModelOutputStride;
   private int mWidth;
   private int mHeight;
   private int mRotation;
@@ -32,6 +33,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       ByteBuffer inputBuf,
       Map<Integer, Object> outputBuf,
       int modelMaxFreqms,
+      int modelOutputStride,
       int width,
       int height,
       int rotation,
@@ -42,6 +44,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
     mInputBuf = inputBuf;
     mOutputBuf = outputBuf;
     mModelMaxFreqms = modelMaxFreqms;
+    mModelOutputStride = modelOutputStride;
     mWidth = width;
     mHeight = height;
     mRotation = rotation;
@@ -81,9 +84,8 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
         }
       }
     } catch (Exception e) {}
-    PosenetDecoder pd = new PosenetDecoder(16);
+    PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
     return pd.decode(mOutputBuf, 1, 0.5f, 20);
-    // return mOutputBuf;
   }
 
   @Override
