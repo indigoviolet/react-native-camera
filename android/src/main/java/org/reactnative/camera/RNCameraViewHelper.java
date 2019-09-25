@@ -242,17 +242,21 @@ public class RNCameraViewHelper {
       ViewGroup view,
       List<Map<String, Object>> data,
       ImageDimensions dimensions,
+      int cameraOrientation,
+      int deviceRotation,
       Map<String, Long> timing) {
     float density = view.getResources().getDisplayMetrics().density;
 
     double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
     double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
 
-    // Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f", view.getWidth(), view.getHeight(), density));
+    // Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f, rotation=%d, dimWidth=%d, dimHeight=%d", view.getWidth(), view.getHeight(), density, dimensions.getRotation(), dimensions.getWidth(), dimensions.getHeight()));
     ModelProcessedEvent event = ModelProcessedEvent.obtain(
         view.getId(),
         data,
         dimensions,
+        cameraOrientation,
+        deviceRotation,
         scaleX,
         scaleY,
         timing

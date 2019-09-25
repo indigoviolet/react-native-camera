@@ -29,6 +29,8 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
   private List<Map<String, Object>> mData;
   private Map<String, Long> mTiming;
   private ImageDimensions mImageDimensions;
+  private int mCameraOrientation;
+  private int mDeviceRotation;
 
   private ModelProcessedEvent() {}
 
@@ -36,6 +38,8 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
       int viewTag,
       List<Map<String, Object>> data,
       ImageDimensions dimensions,
+      int cameraOrientation,
+      int deviceRotation,
       double scaleX,
       double scaleY,
       Map<String, Long> timing) {
@@ -43,7 +47,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     if (event == null) {
       event = new ModelProcessedEvent();
     }
-    event.init(viewTag, data, dimensions, scaleX, scaleY, timing);
+    event.init(viewTag, data, dimensions, cameraOrientation, deviceRotation, scaleX, scaleY, timing);
     return event;
   }
 
@@ -51,12 +55,16 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
       int viewTag,
       List<Map<String, Object>> data,
       ImageDimensions dimensions,
+      int cameraOrientation,
+      int deviceRotation,
       double scaleX,
       double scaleY,
       Map<String, Long> timing) {
     super.init(viewTag);
     mData = data;
     mImageDimensions = dimensions;
+    mCameraOrientation = cameraOrientation;
+    mDeviceRotation = deviceRotation;
     mScaleX = scaleX;
     mScaleY = scaleY;
     mTiming = timing;
@@ -89,6 +97,8 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     dimMap.putInt("height", mImageDimensions.getHeight());
     dimMap.putInt("width", mImageDimensions.getWidth());
     dimMap.putInt("rotation", mImageDimensions.getRotation());
+    dimMap.putInt("cameraOrientation", mCameraOrientation);
+    dimMap.putInt("deviceRotation", mDeviceRotation);
     dimMap.putInt("facing", mImageDimensions.getFacing());
     event.putMap("dimensions", dimMap);
 

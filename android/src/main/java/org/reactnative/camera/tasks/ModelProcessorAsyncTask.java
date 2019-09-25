@@ -23,6 +23,8 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
   private int mModelOutputStride;
   private int mWidth;
   private int mHeight;
+  private int mDeviceRotation;
+  private int mCameraOrientation;
   private int mRotation;
   private long mImageTime;
   private Map<String, Long> mTiming;
@@ -37,6 +39,8 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       int width,
       int height,
       int rotation,
+      int cameraOrientation,
+      int deviceRotation,
       long imageTime
   ) {
     mDelegate = delegate;
@@ -48,9 +52,11 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
     mWidth = width;
     mHeight = height;
     mRotation = rotation;
+    mCameraOrientation = cameraOrientation;
+    mDeviceRotation = deviceRotation;
     mTiming = new HashMap<>();
     mImageTime = imageTime;
-    // Log.i("ReactNative", String.format("mWidth=%d, mHeight=%d, mRotation=%d", mWidth, mHeight, mRotation));
+    // Log.i("ReactNative", String.format("mWidth=%d, mHeight=%d, mDeviceRotation=%d", mWidth, mHeight, mDeviceRotation));
   }
 
   @Override
@@ -84,8 +90,15 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
         }
       }
     } catch (Exception e) {}
+
+    // Decode pose and return if found
     PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
-    return pd.decode(mOutputBuf, 1, 0.5f, 20);
+    List<Map<String, Object>> poses = pd.decode(mOutputBuf, 1, 0.5f, 20);
+    if (poses.size() > 0) {
+      return poses;
+    } else {
+      return null;
+    }
   }
 
   @Override
@@ -93,7 +106,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
     super.onPostExecute(data);
 
     if (data != null) {
-      mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation, mTiming);
+      mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation, mCameraOrientation, mDeviceRotation, mTiming);
     }
     mDelegate.onModelProcessorTaskCompleted();
   }

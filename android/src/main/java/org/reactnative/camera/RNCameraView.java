@@ -1,5 +1,6 @@
 package org.reactnative.camera;
 
+import android.graphics.Matrix;
 import android.view.TextureView;
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -158,8 +159,8 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
 
       @Override
       public void onFramePreview(CameraView cameraView, byte[] data, int width, int height, int rotation) {
-
-        int correctRotation = RNCameraViewHelper.getCorrectCameraRotation(rotation, getFacing(), getCameraOrientation());
+        int cameraOrientation = getCameraOrientation();
+        int correctRotation = RNCameraViewHelper.getCorrectCameraRotation(rotation, getFacing(), cameraOrientation);
         boolean willCallBarCodeTask = mShouldScanBarCodes && !barCodeScannerTaskLock && cameraView instanceof BarCodeScannerAsyncTaskDelegate;
         boolean willCallFaceTask = mShouldDetectFaces && !faceDetectorTaskLock && cameraView instanceof FaceDetectorAsyncTaskDelegate;
         boolean willCallGoogleBarcodeTask = mShouldGoogleDetectBarcodes && !googleBarcodeDetectorTaskLock && cameraView instanceof BarcodeDetectorAsyncTaskDelegate;
@@ -222,20 +223,26 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
         if (willCallModelTask) {
           long timer = SystemClock.elapsedRealtime();
           modelProcessorTaskLock = true;
-          getImageData((TextureView) cameraView.getView());
+          getImageData((TextureView) cameraView.getView(), rotation);
           // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
-          // Log.i("ReactNative", String.format("width=%d, height=%d", width, height));
+          // Log.i("ReactNative", String.format("width=%d, height=%d, rotation=%d, correctRotation=%d, cameraOrientation=%d", width, height, rotation, correctRotation, cameraOrientation));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
-          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, Calendar.getInstance().getTimeInMillis()).execute();
+          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, cameraOrientation, rotation, Calendar.getInstance().getTimeInMillis()).execute();
         }
       }
     });
   }
 
-  private void getImageData(TextureView view) {
+  private void getImageData(TextureView view, int rotation) {
+    // TODO support non-square models?
     Bitmap bitmap = view.getBitmap(mModelInputSize, mModelInputSize);
     if (bitmap == null) {
       return;
+    }
+    if (rotation != 0) {
+      Matrix m = new Matrix();
+      m.postRotate(rotation);
+      bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
     }
     mModelInput.rewind();
     bitmap.getPixels(mModelViewBuf, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
@@ -607,7 +614,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   @Override
-  public void onModelProcessed(List<Map<String, Object>> data, int sourceWidth, int sourceHeight, int sourceRotation, Map<String, Long> timing) {
+  public void onModelProcessed(List<Map<String, Object>> data, int sourceWidth, int sourceHeight, int sourceRotation, int cameraOrientation, int deviceRotation, Map<String, Long> timing) {
     if (!mShouldProcessModel) {
       return;
     }
@@ -615,7 +622,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     List<Map<String, Object>> dataDetected = data == null ? new ArrayList<Map<String, Object>>() : data;
     ImageDimensions dimensions = new ImageDimensions(sourceWidth, sourceHeight, sourceRotation, getFacing());
 
-    RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions, timing);
+    RNCameraViewHelper.emitModelProcessedEvent(this, dataDetected, dimensions, cameraOrientation, deviceRotation, timing);
   }
 
   @Override
