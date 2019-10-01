@@ -140,6 +140,7 @@ type ModelParamsType = {
   freqms?: number;
   mean?: number;
   std?: number;
+  outputStride?: number;
 };
 
 export interface RNCameraProps {
