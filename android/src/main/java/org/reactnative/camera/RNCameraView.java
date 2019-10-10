@@ -80,6 +80,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private Interpreter mModelProcessor;
   private GpuDelegate mModelGpuDelegate;
   private String mModelFile;
+  private String mModelType;
   private double mModelMean;
   private double mModelStd;
   private int mModelMaxFreqms;
@@ -227,7 +228,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
           // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
           // Log.i("ReactNative", String.format("width=%d, height=%d, rotation=%d, correctRotation=%d, cameraOrientation=%d", width, height, rotation, correctRotation, cameraOrientation));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
-          new ModelProcessorAsyncTask(delegate, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, cameraOrientation, rotation, Calendar.getInstance().getTimeInMillis()).execute();
+          new ModelProcessorAsyncTask(delegate, mModelType, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, cameraOrientation, rotation, Calendar.getInstance().getTimeInMillis()).execute();
         }
       }
     });
@@ -513,14 +514,13 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
   }
 
-  private void setupModelProcessor() {
+  private void setupModelProcessor(boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads) {
     try {
-      mModelGpuDelegate = new GpuDelegate();
-
-        // .setAllowFp16PrecisionForFp32(true)
-        // .setUseNNAPI(false)
-
-      Interpreter.Options options = (new Interpreter.Options()).addDelegate(mModelGpuDelegate);
+      Interpreter.Options options = (new Interpreter.Options()).setUseNNAPI(useNNAPI).setAllowFp16PrecisionForFp32(allowFp16Precision).setNumThreads(numThreads);
+      if (useGpuDelegate) {
+        mModelGpuDelegate = new GpuDelegate();
+        options.addDelegate(mModelGpuDelegate);
+      }
       mModelProcessor = new Interpreter(loadModelFile(), options);
 
       Tensor tensor = mModelProcessor.getInputTensor(0);
@@ -591,15 +591,16 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);
   }
 
-  public void setModelFile(String modelFile, double mean, double std, int freqms, int outputStride) {
+  public void setModelParams(String modelFile, double mean, double std, int freqms, int outputStride, boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads, String modelType) {
     this.mModelFile = modelFile;
+    this.mModelType = modelType;
     this.mModelMaxFreqms = freqms;
     this.mModelMean = mean;
     this.mModelStd = std;
     this.mModelOutputStride = outputStride;
     boolean shouldProcessModel = (modelFile != null);
     if (shouldProcessModel && mModelProcessor == null) {
-      setupModelProcessor();
+      setupModelProcessor(useNNAPI, useGpuDelegate, allowFp16Precision, numThreads);
     }
     this.mShouldProcessModel = shouldProcessModel;
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);

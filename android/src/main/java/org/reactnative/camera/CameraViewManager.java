@@ -200,6 +200,14 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     double std = model.hasKey("std") ? model.getDouble("std") : 127.5;
     int freqms = model.hasKey("freqms") ? model.getInt("freqms") : 0;
     int outputStride = model.hasKey("outputStride") ? model.getInt("outputStride") : 16;
-    view.setModelFile(modelFile, mean, std, freqms, outputStride);
+
+    boolean useNNAPI = model.hasKey("useNNAPI") ? model.getBoolean("useNNAPI") : false;
+    boolean useGpuDelegate = model.hasKey("useGpuDelegate") ? model.getBoolean("useGpuDelegate") : false;
+    boolean allowFp16Precision = model.hasKey("allowFp16Precision") ? model.getBoolean("allowFp16Precision") : false;
+    int numThreads = model.hasKey("numThreads") ? model.getInt("numThreads") : -1;
+
+    String modelType = model.hasKey("type") ? model.getString("type") : "posenet";
+
+    view.setModelParams(modelFile, mean, std, freqms, outputStride, useNNAPI, useGpuDelegate, allowFp16Precision, numThreads, modelType);
   }
 }

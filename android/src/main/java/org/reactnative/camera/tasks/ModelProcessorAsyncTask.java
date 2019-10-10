@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.Calendar;
 
@@ -17,6 +18,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
 
   private ModelProcessorAsyncTaskDelegate mDelegate;
   private Interpreter mModelProcessor;
+  private String mModelType;
   private ByteBuffer mInputBuf;
   private Map<Integer, Object> mOutputBuf;
   private int mModelMaxFreqms;
@@ -31,6 +33,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
 
   public ModelProcessorAsyncTask(
       ModelProcessorAsyncTaskDelegate delegate,
+      String modelType,
       Interpreter modelProcessor,
       ByteBuffer inputBuf,
       Map<Integer, Object> outputBuf,
@@ -44,6 +47,7 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       long imageTime
   ) {
     mDelegate = delegate;
+    mModelType = modelType;
     mModelProcessor = modelProcessor;
     mInputBuf = inputBuf;
     mOutputBuf = outputBuf;
@@ -91,23 +95,19 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       }
     } catch (Exception e) {}
 
-    // Decode pose and return if found
-    PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
-    List<Map<String, Object>> poses = pd.decode(mOutputBuf, 1, 0.5f, 20);
-    if (poses.size() > 0) {
-      return poses;
-    } else {
-      return null;
+    List<Map<String, Object>> poses = new ArrayList<>();
+    if (mModelType == "posenet") {
+      // Decode pose and return if found
+      PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
+      poses = pd.decode(mOutputBuf, 1, 0.5f, 20);
     }
+    return poses;
   }
 
   @Override
   protected void onPostExecute(List<Map<String, Object>> data) {
     super.onPostExecute(data);
-
-    if (data != null) {
-      mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation, mCameraOrientation, mDeviceRotation, mTiming);
-    }
+    mDelegate.onModelProcessed(data, mWidth, mHeight, mRotation, mCameraOrientation, mDeviceRotation, mTiming);
     mDelegate.onModelProcessorTaskCompleted();
   }
 }
