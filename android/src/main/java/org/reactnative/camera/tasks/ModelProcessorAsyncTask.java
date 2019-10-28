@@ -77,9 +77,10 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
       mTiming.put("inference_ns", mModelProcessor.getLastNativeInferenceDurationNanoseconds());
       mTiming.put("inferenceEndTime", Calendar.getInstance().getTimeInMillis());
-      Log.i("ReactNative", String.format("Model Processed in %d ms (%d ns)",
-                                         SystemClock.elapsedRealtime() - startTime,
-                                         mModelProcessor.getLastNativeInferenceDurationNanoseconds()));
+      // Log.i("ReactNative", String.format("%s Model Processed in %d ms (%d ns)",
+      //                                    mModelType,
+      //                                    SystemClock.elapsedRealtime() - startTime,
+      //                                    mModelProcessor.getLastNativeInferenceDurationNanoseconds()));
     } catch (Exception e) {
       Log.e("ReactNative", "Exception occurred in mModelProcessor", e);
     }
@@ -96,10 +97,12 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
     } catch (Exception e) {}
 
     List<Map<String, Object>> poses = new ArrayList<>();
-    if (mModelType == "posenet") {
+    if (mModelType.equals("posenet")) {
       // Decode pose and return if found
+      mTiming.put("decodingBeginTime", Calendar.getInstance().getTimeInMillis());
       PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
       poses = pd.decode(mOutputBuf, 1, 0.5f, 20);
+      mTiming.put("decodingEndTime", Calendar.getInstance().getTimeInMillis());
     }
     return poses;
   }

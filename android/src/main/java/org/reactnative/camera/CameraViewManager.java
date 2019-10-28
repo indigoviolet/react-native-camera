@@ -59,6 +59,7 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     return new RNCameraView(themedReactContext);
   }
 
+  // This registers the map of events -> callbacks
   @Override
   @Nullable
   public Map<String, Object> getExportedCustomDirectEventTypeConstants() {

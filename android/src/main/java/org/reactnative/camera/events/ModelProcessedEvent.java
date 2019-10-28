@@ -17,6 +17,7 @@ import java.util.Calendar;
 
 import com.indigoviolet.react.ArrayUtil;
 import com.indigoviolet.react.MapUtil;
+import android.util.Log;
 
 public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
 
@@ -108,6 +109,7 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     event.putMap("timing", MapUtil.toWritableMap(timingObj));
 
     event.putInt("target", getViewTag());
+    // Log.i("ReactNative", String.format("(%d) Serialized %d", mTiming.get("imageTime"), Calendar.getInstance().getTimeInMillis()));
     return event;
   }
 
