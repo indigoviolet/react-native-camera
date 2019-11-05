@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.Calendar;
 
 import android.util.Log;
-import com.indigoviolet.posenet.PosenetDecoder;
+import com.indigoviolet.posedecoding.PosenetDecoder;
+import com.indigoviolet.posedecoding.CPMHourglassDecoder;
 
 public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, List<Map<String, Object>>> {
 
@@ -97,13 +98,15 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
     } catch (Exception e) {}
 
     List<Map<String, Object>> poses = new ArrayList<>();
+
+    // Decode pose and return if found
+    mTiming.put("decodingBeginTime", Calendar.getInstance().getTimeInMillis());
     if (mModelType.equals("posenet")) {
-      // Decode pose and return if found
-      mTiming.put("decodingBeginTime", Calendar.getInstance().getTimeInMillis());
-      PosenetDecoder pd = new PosenetDecoder(mModelOutputStride);
-      poses = pd.decode(mOutputBuf, 1, 0.5f, 20);
-      mTiming.put("decodingEndTime", Calendar.getInstance().getTimeInMillis());
+      poses = PosenetDecoder.getInstance(mModelOutputStride, 1, 0.5f, 20).decode(mOutputBuf);
+    } else if (mModelType.equals("cpm") || mModelType.equals("hourglass")){
+      poses = CPMHourglassDecoder.decode(mOutputBuf);
     }
+    mTiming.put("decodingEndTime", Calendar.getInstance().getTimeInMillis());
     return poses;
   }
 

@@ -103,7 +103,6 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private boolean mTrackingEnabled = true;
   private int mPaddingX;
   private int mPaddingY;
-  private long mOnFramePreviewTime = 0;
 
   public RNCameraView(ThemedReactContext themedReactContext) {
     super(themedReactContext, true);
@@ -168,15 +167,6 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
         boolean willCallTextTask = mShouldRecognizeText && !textRecognizerTaskLock && cameraView instanceof TextRecognizerAsyncTaskDelegate;
         boolean willCallModelTask = mShouldProcessModel && !modelProcessorTaskLock && cameraView instanceof ModelProcessorAsyncTaskDelegate;
 
-        // Log.i("ReactNative", String.format("onFramePreview, modelProcessorTaskLock=%b, time elapsed=%d", modelProcessorTaskLock, SystemClock.uptimeMillis() - mOnFramePreviewTime));
-        mOnFramePreviewTime = SystemClock.uptimeMillis();
-
-        // Log.i("ReactNative", String.format("willCallBarCodeTask %b", willCallBarCodeTask));
-        // Log.i("ReactNative", String.format("willCallFaceTask %b", willCallFaceTask));
-        // Log.i("ReactNative", String.format("willCallGoogleBarcodeTask %b", willCallGoogleBarcodeTask));
-        // Log.i("ReactNative", String.format("willCallTextTask %b", willCallTextTask));
-        // Log.i("ReactNative", String.format("willCallModelTask", willCallModelTask));
-
         if (!willCallBarCodeTask && !willCallFaceTask && !willCallGoogleBarcodeTask && !willCallTextTask && !willCallModelTask) {
           return;
         }
@@ -225,8 +215,6 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
           long timer = SystemClock.elapsedRealtime();
           modelProcessorTaskLock = true;
           getImageData((TextureView) cameraView.getView(), rotation);
-          // Log.i("ReactNative", String.format("Image data obtained in %d ms", SystemClock.uptimeMillis() - timer));
-          // Log.i("ReactNative", String.format("width=%d, height=%d, rotation=%d, correctRotation=%d, cameraOrientation=%d", width, height, rotation, correctRotation, cameraOrientation));
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
           new ModelProcessorAsyncTask(delegate, mModelType, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, cameraOrientation, rotation, Calendar.getInstance().getTimeInMillis()).execute();
         }
@@ -527,15 +515,17 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
       mModelInputSize = tensor.shape()[1];
       int inputChannels = tensor.shape()[3];
       mModelInputDataType = tensor.dataType();
-      int bytePerChannel = mModelInputDataType == DataType.UINT8 ? 1 : 4;
+      int bytePerChannel = mModelInputDataType.byteSize();
       int inputTensorSize = mModelInputSize * mModelInputSize * inputChannels * bytePerChannel;
-      Log.i("ReactNative", String.format("mModelInputSize=%d; inputChannels=%d, bytePerChannel=%d, inputTensorSize=%d", mModelInputSize, inputChannels, bytePerChannel, inputTensorSize));
+      Log.i("ReactNative", String.format("mModelInputSize=%d; inputChannels=%d, bytePerChannel=%d, inputTensorSize=%d, mModelInputDataType=%s", mModelInputSize, inputChannels, bytePerChannel, inputTensorSize, mModelInputDataType));
 
       mModelInput = ByteBuffer.allocateDirect(inputTensorSize);
       mModelInput.order(ByteOrder.nativeOrder());
       mModelViewBuf = new int[mModelInputSize * mModelInputSize];
       mModelOutput = makeOutputMap(float.class);
-    } catch(Exception e) {}
+    } catch(Exception e) {
+      Log.i("ReactNative", "Exception in setupModelProcessor");
+    }
   }
 
   private Map<Integer, Object> makeOutputMap(Class<?> componentType) {
