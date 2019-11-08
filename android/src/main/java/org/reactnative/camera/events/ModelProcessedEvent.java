@@ -44,11 +44,13 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
       double scaleX,
       double scaleY,
       Map<String, Long> timing) {
+    timing.put("eventBeginTime", Calendar.getInstance().getTimeInMillis());
     ModelProcessedEvent event = EVENTS_POOL.acquire();
     if (event == null) {
       event = new ModelProcessedEvent();
     }
     event.init(viewTag, data, dimensions, cameraOrientation, deviceRotation, scaleX, scaleY, timing);
+    timing.put("eventEndTime", Calendar.getInstance().getTimeInMillis());
     return event;
   }
 
@@ -81,7 +83,6 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     rctEventEmitter.receiveEvent(getViewTag(), getEventName(), serializeEventData());
   }
 
-
   private WritableMap serializeEventData() {
     mTiming.put("serializationBeginTime", Calendar.getInstance().getTimeInMillis());
 
@@ -109,7 +110,6 @@ public class ModelProcessedEvent extends Event<ModelProcessedEvent> {
     event.putMap("timing", MapUtil.toWritableMap(timingObj));
 
     event.putInt("target", getViewTag());
-    // Log.i("ReactNative", String.format("(%d) Serialized %d", mTiming.get("imageTime"), Calendar.getInstance().getTimeInMillis()));
     return event;
   }
 

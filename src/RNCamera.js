@@ -239,9 +239,13 @@ type EventCallbackArgumentsType = {
 
 type ModelParamsType = {
   modelFile: string,
-  mean?: number,
-  std?: number,
   freqms?: number,
+  outputStride?: number,
+  useNNAPI?: boolean,
+  useGpuDelegate?: boolean,
+  allowFp16Precision?: boolean,
+  numThreads?: number,
+  type?: 'posenet' | 'cpm' | 'hourglass',
 };
 
 type PropsType = typeof View.props & {

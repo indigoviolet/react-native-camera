@@ -250,7 +250,6 @@ public class RNCameraViewHelper {
     double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
     double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
 
-    // Log.i("ReactNative", String.format("view width=%d, view height=%d, density=%f, rotation=%d, dimWidth=%d, dimHeight=%d", view.getWidth(), view.getHeight(), density, dimensions.getRotation(), dimensions.getWidth(), dimensions.getHeight()));
     ModelProcessedEvent event = ModelProcessedEvent.obtain(
         view.getId(),
         data,
@@ -262,8 +261,10 @@ public class RNCameraViewHelper {
         timing
     );
 
+    timing.put("dispatchBeginTime", Calendar.getInstance().getTimeInMillis());
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
+    timing.put("dispatchEndTime", Calendar.getInstance().getTimeInMillis());
   }
 
   // Utilities

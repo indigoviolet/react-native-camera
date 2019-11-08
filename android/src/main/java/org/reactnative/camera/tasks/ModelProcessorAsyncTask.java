@@ -1,87 +1,86 @@
 package org.reactnative.camera.tasks;
 
-import org.tensorflow.lite.Interpreter;
+import android.graphics.Bitmap;
 import android.os.SystemClock;
-import java.nio.ByteBuffer;
 
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.Calendar;
 
 import android.util.Log;
+import com.indigoviolet.posedecoding.Decoder;
+import com.indigoviolet.posedecoding.DecoderParams;
 import com.indigoviolet.posedecoding.PosenetDecoder;
 import com.indigoviolet.posedecoding.CPMHourglassDecoder;
+import com.indigoviolet.posedecoding.TfliteModel;
 
 public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, List<Map<String, Object>>> {
 
   private ModelProcessorAsyncTaskDelegate mDelegate;
-  private Interpreter mModelProcessor;
   private String mModelType;
-  private ByteBuffer mInputBuf;
-  private Map<Integer, Object> mOutputBuf;
+  private TfliteModel mModel;
+  private DecoderParams mDecoderParams;
   private int mModelMaxFreqms;
-  private int mModelOutputStride;
+  private Bitmap mBitmap;
   private int mWidth;
   private int mHeight;
   private int mDeviceRotation;
   private int mCameraOrientation;
   private int mRotation;
-  private long mImageTime;
   private Map<String, Long> mTiming;
 
   public ModelProcessorAsyncTask(
       ModelProcessorAsyncTaskDelegate delegate,
       String modelType,
-      Interpreter modelProcessor,
-      ByteBuffer inputBuf,
-      Map<Integer, Object> outputBuf,
+      TfliteModel model,
+      DecoderParams decoderParams,
       int modelMaxFreqms,
-      int modelOutputStride,
+      Bitmap bitmap,
       int width,
       int height,
       int rotation,
       int cameraOrientation,
       int deviceRotation,
-      long imageTime
+      Map<String, Long> timing
   ) {
     mDelegate = delegate;
     mModelType = modelType;
-    mModelProcessor = modelProcessor;
-    mInputBuf = inputBuf;
-    mOutputBuf = outputBuf;
+    mModel = model;
+    mDecoderParams = decoderParams;
     mModelMaxFreqms = modelMaxFreqms;
-    mModelOutputStride = modelOutputStride;
+    mBitmap = bitmap;
     mWidth = width;
     mHeight = height;
     mRotation = rotation;
     mCameraOrientation = cameraOrientation;
     mDeviceRotation = deviceRotation;
-    mTiming = new HashMap<>();
-    mImageTime = imageTime;
+    mTiming = timing;
     // Log.i("ReactNative", String.format("mWidth=%d, mHeight=%d, mDeviceRotation=%d", mWidth, mHeight, mDeviceRotation));
   }
 
   @Override
   protected List<Map<String, Object>> doInBackground(Void... ignored) {
-    if (isCancelled() || mDelegate == null || mModelProcessor == null) {
+    if (isCancelled() || mDelegate == null) {
       return null;
     }
     long startTime = SystemClock.elapsedRealtime();
-    try {
-      mTiming.put("imageTime", mImageTime);
-      mTiming.put("inferenceBeginTime", Calendar.getInstance().getTimeInMillis());
 
-      mInputBuf.rewind();
-      mModelProcessor.runForMultipleInputsOutputs(new Object[]{mInputBuf}, mOutputBuf);
-      mTiming.put("inference_ns", mModelProcessor.getLastNativeInferenceDurationNanoseconds());
-      mTiming.put("inferenceEndTime", Calendar.getInstance().getTimeInMillis());
-      // Log.i("ReactNative", String.format("%s Model Processed in %d ms (%d ns)",
-      //                                    mModelType,
-      //                                    SystemClock.elapsedRealtime() - startTime,
-      //                                    mModelProcessor.getLastNativeInferenceDurationNanoseconds()));
+    Decoder decoder;
+
+    mTiming.put("decoderBeginTime", Calendar.getInstance().getTimeInMillis());
+    if (mModelType.equals("posenet")) {
+      decoder = PosenetDecoder.getInstance(mModel, mDecoderParams);
+    } else if (mModelType.equals("cpm") || mModelType.equals("hourglass")){
+      decoder = CPMHourglassDecoder.getInstance(mModel, mDecoderParams);
+    } else {
+      throw new IllegalArgumentException(String.format("Unknown model type %s", mModelType));
+    }
+    mTiming.put("decoderEndTime", Calendar.getInstance().getTimeInMillis());
+    decoder.setTiming(mTiming);
+
+    try {
+      decoder.run(mBitmap);
     } catch (Exception e) {
       Log.e("ReactNative", "Exception occurred in mModelProcessor", e);
     }
@@ -97,15 +96,9 @@ public class ModelProcessorAsyncTask extends android.os.AsyncTask<Void, Void, Li
       }
     } catch (Exception e) {}
 
-    List<Map<String, Object>> poses = new ArrayList<>();
-
     // Decode pose and return if found
     mTiming.put("decodingBeginTime", Calendar.getInstance().getTimeInMillis());
-    if (mModelType.equals("posenet")) {
-      poses = PosenetDecoder.getInstance(mModelOutputStride, 1, 0.5f, 20).decode(mOutputBuf);
-    } else if (mModelType.equals("cpm") || mModelType.equals("hourglass")){
-      poses = CPMHourglassDecoder.decode(mOutputBuf);
-    }
+    List<Map<String, Object>> poses = decoder.getPoses();
     mTiming.put("decodingEndTime", Calendar.getInstance().getTimeInMillis());
     return poses;
   }

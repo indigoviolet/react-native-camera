@@ -138,9 +138,12 @@ type ModelProcessedEvent = {
 type ModelParamsType = {
   file: string;
   freqms?: number;
-  mean?: number;
-  std?: number;
   outputStride?: number;
+  useNNAPI?: boolean;
+  useGpuDelegate?: boolean;
+  allowFp16Precision?: boolean;
+  numThreads?: number;
+  type?: 'posenet' | 'cpm' | 'hourglass';
 };
 
 export interface RNCameraProps {

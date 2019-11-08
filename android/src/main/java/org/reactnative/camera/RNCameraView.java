@@ -12,6 +12,8 @@ import android.os.Build;
 import androidx.core.content.ContextCompat;
 
 import android.os.SystemClock;
+
+import java.io.FileDescriptor;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import android.view.View;
@@ -39,6 +41,8 @@ import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.Tensor;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.gpu.GpuDelegate;
+import com.indigoviolet.posedecoding.TfliteModel;
+import com.indigoviolet.posedecoding.DecoderParams;
 
 import java.util.Calendar;
 import java.io.File;
@@ -77,19 +81,11 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   private RNFaceDetector mFaceDetector;
   private RNBarcodeDetector mGoogleBarcodeDetector;
 
-  private Interpreter mModelProcessor;
-  private GpuDelegate mModelGpuDelegate;
-  private String mModelFile;
+  private TfliteModel mModel;
+  private DecoderParams mDecoderParams;
   private String mModelType;
-  private double mModelMean;
-  private double mModelStd;
   private int mModelMaxFreqms;
-  private int mModelOutputStride;
-  private ByteBuffer mModelInput;
-  private DataType mModelInputDataType;
-  private int[] mModelViewBuf;
-  private int mModelInputSize;
-  private Map<Integer, Object> mModelOutput;
+
   private boolean mShouldDetectFaces = false;
   private boolean mShouldGoogleDetectBarcodes = false;
   private boolean mShouldScanBarCodes = false;
@@ -212,44 +208,28 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
         }
 
         if (willCallModelTask) {
-          long timer = SystemClock.elapsedRealtime();
           modelProcessorTaskLock = true;
-          getImageData((TextureView) cameraView.getView(), rotation);
+          Bitmap bitmap = getImageData((TextureView) cameraView.getView(), rotation);
           ModelProcessorAsyncTaskDelegate delegate = (ModelProcessorAsyncTaskDelegate) cameraView;
-          new ModelProcessorAsyncTask(delegate, mModelType, mModelProcessor, mModelInput, mModelOutput, mModelMaxFreqms, mModelOutputStride, width, height, correctRotation, cameraOrientation, rotation, Calendar.getInstance().getTimeInMillis()).execute();
+
+          // Capture time spent for each step
+          Map<String, Long> timing = new HashMap<>();
+          timing.put("imageTime", Calendar.getInstance().getTimeInMillis());
+          new ModelProcessorAsyncTask(delegate, mModelType, mModel, mDecoderParams, mModelMaxFreqms, bitmap, width, height, correctRotation, cameraOrientation, rotation, timing).execute();
         }
       }
     });
   }
 
-  private void getImageData(TextureView view, int rotation) {
+  private Bitmap getImageData(TextureView view, int rotation) {
     // TODO support non-square models?
-    Bitmap bitmap = view.getBitmap(mModelInputSize, mModelInputSize);
-    if (bitmap == null) {
-      return;
-    }
+    Bitmap bitmap = view.getBitmap(mModel.getInputSize(), mModel.getInputSize());
     if (rotation != 0) {
       Matrix m = new Matrix();
       m.postRotate(rotation);
       bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
     }
-    mModelInput.rewind();
-    bitmap.getPixels(mModelViewBuf, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-    int pixel = 0;
-    for (int i = 0; i < mModelInputSize; ++i) {
-      for (int j = 0; j < mModelInputSize; ++j) {
-        int pixelValue = mModelViewBuf[pixel++];
-        if (mModelInputDataType == DataType.FLOAT32) {
-          mModelInput.putFloat((((pixelValue >> 16) & 0xFF) - (float) mModelMean) / (float) mModelStd);
-          mModelInput.putFloat((((pixelValue >> 8) & 0xFF) - (float) mModelMean) / (float) mModelStd);
-          mModelInput.putFloat(((pixelValue & 0xFF) - (float) mModelMean) / (float) mModelStd);
-        } else {
-          mModelInput.put((byte) ((pixelValue >> 16) & 0xFF));
-          mModelInput.put((byte) ((pixelValue >> 8) & 0xFF));
-          mModelInput.put((byte) (pixelValue & 0xFF));
-        }
-      }
-    }
+    return bitmap;
   }
 
   @Override
@@ -493,54 +473,7 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText);
   }
 
-  private MappedByteBuffer loadModelFile() throws IOException {
-    AssetFileDescriptor fileDescriptor = mThemedReactContext.getAssets().openFd(mModelFile);
-    FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
-    FileChannel fileChannel = inputStream.getChannel();
-    long startOffset = fileDescriptor.getStartOffset();
-    long declaredLength = fileDescriptor.getDeclaredLength();
-    return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-  }
-
-  private void setupModelProcessor(boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads) {
-    try {
-      Interpreter.Options options = (new Interpreter.Options()).setUseNNAPI(useNNAPI).setAllowFp16PrecisionForFp32(allowFp16Precision).setNumThreads(numThreads);
-      if (useGpuDelegate) {
-        mModelGpuDelegate = new GpuDelegate();
-        options.addDelegate(mModelGpuDelegate);
-      }
-      mModelProcessor = new Interpreter(loadModelFile(), options);
-
-      Tensor tensor = mModelProcessor.getInputTensor(0);
-      mModelInputSize = tensor.shape()[1];
-      int inputChannels = tensor.shape()[3];
-      mModelInputDataType = tensor.dataType();
-      int bytePerChannel = mModelInputDataType.byteSize();
-      int inputTensorSize = mModelInputSize * mModelInputSize * inputChannels * bytePerChannel;
-      Log.i("ReactNative", String.format("mModelInputSize=%d; inputChannels=%d, bytePerChannel=%d, inputTensorSize=%d, mModelInputDataType=%s", mModelInputSize, inputChannels, bytePerChannel, inputTensorSize, mModelInputDataType));
-
-      mModelInput = ByteBuffer.allocateDirect(inputTensorSize);
-      mModelInput.order(ByteOrder.nativeOrder());
-      mModelViewBuf = new int[mModelInputSize * mModelInputSize];
-      mModelOutput = makeOutputMap(float.class);
-    } catch(Exception e) {
-      Log.i("ReactNative", "Exception in setupModelProcessor");
-    }
-  }
-
-  private Map<Integer, Object> makeOutputMap(Class<?> componentType) {
-    Map<Integer, Object> outputMap = new HashMap<>();
-    int outputTensorCount = mModelProcessor.getOutputTensorCount();
-    for (int i = 0; i < outputTensorCount; i++) {
-      int[] shape = mModelProcessor.getOutputTensor(i).shape();
-      Log.i("ReactNative", String.format("outputTensor %d of %d has shape %s", i, outputTensorCount, Arrays.toString(shape)));
-      Object output = Array.newInstance(componentType, shape);
-      outputMap.put(i, output);
-    }
-    return outputMap;
-  }
-
-    public void setGoogleVisionBarcodeType(int barcodeType) {
+  public void setGoogleVisionBarcodeType(int barcodeType) {
     mGoogleVisionBarCodeType = barcodeType;
     if (mGoogleBarcodeDetector != null) {
       mGoogleBarcodeDetector.setBarcodeType(barcodeType);
@@ -581,18 +514,23 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);
   }
 
-  public void setModelParams(String modelFile, double mean, double std, int freqms, int outputStride, boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads, String modelType) {
-    this.mModelFile = modelFile;
+  public void setModelParams(String modelFile, int freqms, int outputStride, boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads, String modelType) {
+    // this.mModelFile = modelFile;
     this.mModelType = modelType;
     this.mModelMaxFreqms = freqms;
-    this.mModelMean = mean;
-    this.mModelStd = std;
-    this.mModelOutputStride = outputStride;
-    boolean shouldProcessModel = (modelFile != null);
-    if (shouldProcessModel && mModelProcessor == null) {
-      setupModelProcessor(useNNAPI, useGpuDelegate, allowFp16Precision, numThreads);
+    // this.mModelMean = mean;
+    // this.mModelStd = std;
+    // this.mModelOutputStride = outputStride;
+    this.mShouldProcessModel = (modelFile != null);
+    if (mShouldProcessModel) {
+      try {
+        AssetFileDescriptor assetFd = mThemedReactContext.getAssets().openFd(modelFile);
+        this.mModel = new TfliteModel(assetFd, useNNAPI, useGpuDelegate, allowFp16Precision, numThreads, outputStride);
+      } catch (IOException e) {
+        Log.i("ReactNative", "Exception reading model file");
+      }
+      this.mDecoderParams = new DecoderParams(); // all defaults currently, but can be adjusted
     }
-    this.mShouldProcessModel = shouldProcessModel;
     setScanning(mShouldDetectFaces || mShouldGoogleDetectBarcodes || mShouldScanBarCodes || mShouldRecognizeText || mShouldProcessModel);
   }
 
@@ -659,9 +597,8 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
     if (mGoogleBarcodeDetector != null) {
       mGoogleBarcodeDetector.release();
     }
-    if (mModelProcessor != null) {
-      mModelProcessor.close();
-      mModelGpuDelegate.close();
+    if (mModel != null) {
+      mModel.close();
     }
     mMultiFormatReader = null;
     stop();

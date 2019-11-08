@@ -197,8 +197,6 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
   @ReactProp(name = "modelParams")
   public void setModelParams(RNCameraView view, ReadableMap model) {
     String modelFile = model.getString("file");
-    double mean = model.hasKey("mean") ? model.getDouble("mean") : 127.5 ;
-    double std = model.hasKey("std") ? model.getDouble("std") : 127.5;
     int freqms = model.hasKey("freqms") ? model.getInt("freqms") : 0;
     int outputStride = model.hasKey("outputStride") ? model.getInt("outputStride") : 16;
 
@@ -209,6 +207,6 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
 
     String modelType = model.hasKey("type") ? model.getString("type") : "posenet";
 
-    view.setModelParams(modelFile, mean, std, freqms, outputStride, useNNAPI, useGpuDelegate, allowFp16Precision, numThreads, modelType);
+    view.setModelParams(modelFile, freqms, outputStride, useNNAPI, useGpuDelegate, allowFp16Precision, numThreads, modelType);
   }
 }
