@@ -27,8 +27,6 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 
-import android.util.Log;
-
 public class RNCameraViewHelper {
 
   public static final String[][] exifTags = new String[][]{

@@ -11,11 +11,6 @@ import android.media.MediaActionSound;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 
-import android.os.SystemClock;
-
-import java.io.FileDescriptor;
-import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
 import android.view.View;
 import android.os.AsyncTask;
 import com.facebook.react.bridge.*;
@@ -31,16 +26,8 @@ import org.reactnative.camera.utils.ImageDimensions;
 import org.reactnative.camera.utils.RNFileUtils;
 import org.reactnative.facedetector.RNFaceDetector;
 import android.content.res.AssetFileDescriptor;
-import java.io.FileInputStream;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.nio.MappedByteBuffer;
 import android.graphics.Bitmap;
 
-import org.tensorflow.lite.Interpreter;
-import org.tensorflow.lite.Tensor;
-import org.tensorflow.lite.DataType;
-import org.tensorflow.lite.gpu.GpuDelegate;
 import com.indigoviolet.posedecoding.TfliteModel;
 import com.indigoviolet.posedecoding.DecoderParams;
 
@@ -515,12 +502,8 @@ public class RNCameraView extends CameraView implements LifecycleEventListener, 
   }
 
   public void setModelParams(String modelFile, int freqms, int outputStride, boolean useNNAPI, boolean useGpuDelegate, boolean allowFp16Precision, int numThreads, String modelType) {
-    // this.mModelFile = modelFile;
     this.mModelType = modelType;
     this.mModelMaxFreqms = freqms;
-    // this.mModelMean = mean;
-    // this.mModelStd = std;
-    // this.mModelOutputStride = outputStride;
     this.mShouldProcessModel = (modelFile != null);
     if (mShouldProcessModel) {
       try {

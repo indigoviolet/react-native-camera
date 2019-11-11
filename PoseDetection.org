@@ -1,0 +1,29 @@
+This is a fork of the [[https://github.com/react-native-community/react-native-camera][react-native-camera]] library, modified to allow
+native pose detection on the preview stream (since passing image
+frames back to JS over the bridge is too slow).
+
+Most of the changes follow the patterns already implemented for face
+detection.
+
+Concretely:
+
+- ~onModelProcessed~ is a JS callback that will receive the output of
+  processing each frame.
+
+- You can pass in a ~modelParams~ prop to control the pose
+  detection. This is backed by ~CameraViewManager.setModelParams~,
+  which invokes ~setModelParams~ on ~RNCameraView~
+
+- ~RNCameraView.setModelParams~ sets up a ~TFliteModel~ (defined in
+  [[https://github.com/indigoviolet/react-native-pose-decoding][react-native-pose-decoding]]) to instantiate a TFlite
+  ~Interpreter~. The ~.tflite~ model file is expected to be in the
+  ~assets/~ folder.
+
+- ~onFramePreview~ will then start an asynchronous
+  ~ModelProcessorAsyncTask~ for each frame, and pass to it a correctly
+  rotated bitmap to process.
+
+- ~ModelProcessorAsyncTask~ delegates most of its work to
+  [[https://github.com/indigoviolet/react-native-pose-decoding][react-native-pose-decoding]]'s ~Decoder~s. The result of pose
+  detection is a list of ~Pose~ objects which are serialized via
+  ~ModelProcessedEvent~ back to JS.
